@@ -3,10 +3,10 @@
 #include <DallasTemperature.h>
 
 // GPIO where the DS18B20 is connected to
-#define ONE_WIRE_PIN D2
+#define ONE_WIRE_PIN D6
 
-#define LED_RELAY D6
-#define RELAY_PIN D5
+#define LED_RELAY D7
+#define RELAY_PIN D2
 
 // Setup a oneWire instance to communicate with any OneWire devices
 OneWire oneWire(ONE_WIRE_PIN);
@@ -21,11 +21,16 @@ DallasTemperature sensors(&oneWire);
 #include <ESP8266mDNS.h>
 const char *ssid = "Seareach";
 const char *password = "seareach";
+// const char *ssid = "BTWholeHome-****";
+// const char *password = "KAuWf79MV7ip";
 ESP8266WebServer server(80);
 
 bool relayOn = false;
 bool previousRelayOn = false;
 float temp;
+
+unsigned long lastTime = 0;
+unsigned long timerDelay = 2000;
 
 void handleNotFound()
 {
@@ -35,6 +40,8 @@ void handleNotFound()
 
 void handleRoot()
 {
+  // use https://www.textfixer.com/tools/paragraph-to-lines.php to convert html to single line then replace "  with \"
+
   String html = "<!DOCTYPE html> <html> <head> <title>Fan Control</title> <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/bootswatch/5.2.3/superhero/bootstrap.min.css\" integrity=\"sha512-OIkcyk7xM5npH4qAW0dlLVzXsAzumZZnHfOB3IL17cXO6bNIK4BpYSh0d63R1llgUcrWZ709bCJhenNrEsno0w==\" crossorigin=\"anonymous\" referrerpolicy=\"no-referrer\" /> </head> <body> <div class=\"container\"> <div class=\"row\"> <div class=\"col-lg-12\"> <div> <h2>&nbsp;</h2> <h1>Loft Temperature</h1> <h2 class=\"text-info\">";
 
   char tempdisp[10];
@@ -42,12 +49,12 @@ void handleRoot()
   sprintf(tempdisp, "%.1f", temp);
 
   html.concat(tempdisp);
-  
+
   html.concat("c</h2> </div> </div> </div> <div class=\"row\"> <div class=\"col-lg-12\"> <div> <h2>&nbsp;</h2> <h1>Fan Control</h1> </div> </div> </div> <div class=\"row\"> <div class=\"col-lg-12\"> <h2 class=\"text-info\">");
-  
+
   html.concat(relayOn ? "Running" : "Fan is off");
 
-  html.concat("</h2> <h2>&nbsp;</h2> <div class=\"bs-component\"> <div class=\"d-grid gap-4\"> <a href=\"/on\" class=\"btn btn-lg btn-success\" type=\"button\">ON</a> <a href=\"/off\" class=\"btn btn-lg btn-danger\" type=\"button\">OFF</a> </div> </div> </div> </div> </div> </body> </html>");
+  html.concat("</h2> <h2>&nbsp;</h2> <div class=\"row\"> <div class=\"col-6\"> <div class=\"bs-component\"> <div class=\"d-grid\"> <a href=\"/on\" class=\"btn btn-lg btn-success\" type=\"button\">ON</a> </div> </div> </div> <div class=\"col-6\"> <div class=\"bs-component\"> <div class=\"d-grid\"> <a href=\"/off\" class=\"btn btn-lg btn-danger\" type=\"button\">OFF</a> </div> </div> </div> </div> </div> </div> </div> </body> </html>");
 
   server.send(200, "text/html", html);
 }
@@ -77,6 +84,7 @@ void setup()
   sensors.begin();
   // LEDS
   pinMode(LED_RELAY, OUTPUT);
+  digitalWrite(LED_RELAY, LOW);
 
   // RELAY
   pinMode(RELAY_PIN, OUTPUT);
@@ -117,8 +125,12 @@ void loop()
     digitalWrite(RELAY_PIN, relayOn ? HIGH : LOW);
   }
 
-  sensors.requestTemperatures();
-  temp = sensors.getTempCByIndex(0);
+  if ((millis() - lastTime) > timerDelay)
+  {
+    lastTime = millis();
+    sensors.requestTemperatures();
+    temp = sensors.getTempCByIndex(0);
 
-  delay(500);
+    Serial.println(temp);
+  }
 }
