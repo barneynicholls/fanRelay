@@ -1,12 +1,14 @@
 #include <Arduino.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <ArduinoOTA.h>
+#include "basicOTA.h"
 
 // GPIO where the DS18B20 is connected to
-#define ONE_WIRE_PIN D6
+#define ONE_WIRE_PIN D7
 
-#define LED_RELAY D7
-#define RELAY_PIN D2
+#define LED_RELAY D6
+#define RELAY_PIN D1
 
 // Setup a oneWire instance to communicate with any OneWire devices
 OneWire oneWire(ONE_WIRE_PIN);
@@ -42,7 +44,7 @@ void handleRoot()
 {
   // use https://www.textfixer.com/tools/paragraph-to-lines.php to convert html to single line then replace "  with \"
 
-  String html = "<!DOCTYPE html> <html> <head> <title>Fan Control</title> <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/bootswatch/5.2.3/superhero/bootstrap.min.css\" integrity=\"sha512-OIkcyk7xM5npH4qAW0dlLVzXsAzumZZnHfOB3IL17cXO6bNIK4BpYSh0d63R1llgUcrWZ709bCJhenNrEsno0w==\" crossorigin=\"anonymous\" referrerpolicy=\"no-referrer\" /> </head> <body> <div class=\"container\"> <div class=\"row\"> <div class=\"col-lg-12\"> <div> <h2>&nbsp;</h2> <h1>Loft Temperature</h1> <h2 class=\"text-info\">";
+  String html = "<!DOCTYPE html> <html> <head> <meta http-equiv=\"refresh\" content=\"30\"><title>Fan Control</title> <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/bootswatch/5.2.3/superhero/bootstrap.min.css\" integrity=\"sha512-OIkcyk7xM5npH4qAW0dlLVzXsAzumZZnHfOB3IL17cXO6bNIK4BpYSh0d63R1llgUcrWZ709bCJhenNrEsno0w==\" crossorigin=\"anonymous\" referrerpolicy=\"no-referrer\" /> </head> <body> <div class=\"container\"> <div class=\"row\"> <div class=\"col-lg-12\"> <div> <h2>&nbsp;</h2> <h1>Loft Temperature</h1> <h2 class=\"text-info\">";
 
   char tempdisp[10];
 
@@ -112,6 +114,9 @@ void setup()
   server.on("/off", handleOff);
   server.onNotFound(handleNotFound);
   server.begin();
+
+  // Setup Firmware update over the air (OTA)
+  setup_OTA();
 }
 
 void loop()
@@ -133,4 +138,7 @@ void loop()
 
     Serial.println(temp);
   }
+
+  // Check for OTA updates
+  ArduinoOTA.handle();
 }
