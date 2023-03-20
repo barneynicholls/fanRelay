@@ -3,6 +3,13 @@
 #include <DallasTemperature.h>
 #include <ArduinoOTA.h>
 #include "basicOTA.h"
+#include "secrets.h"
+
+// thingspeak
+#include "ThingSpeak.h"
+unsigned long myChannelNumber = SECRET_CH_ID;
+const char *myWriteAPIKey = SECRET_WRITE_APIKEY;
+WiFiClient client;
 
 // GPIO where the DS18B20 is connected to
 #define ONE_WIRE_PIN D7
@@ -21,10 +28,9 @@ DallasTemperature sensors(&oneWire);
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
-const char *ssid = "Seareach";
-const char *password = "seareach";
-// const char *ssid = "BTWholeHome-****";
-// const char *password = "KAuWf79MV7ip";
+const char *ssid = SECRET_SSID;
+const char *password = SECRET_PASS;
+
 ESP8266WebServer server(80);
 
 bool relayOn = false;
@@ -32,7 +38,7 @@ bool previousRelayOn = false;
 float temp;
 
 unsigned long lastTime = 0;
-unsigned long timerDelay = 2000;
+unsigned long timerDelay = 20000;
 
 void handleNotFound()
 {
@@ -44,15 +50,12 @@ void handleRoot()
 {
   // use https://www.textfixer.com/tools/paragraph-to-lines.php to convert html to single line then replace "  with \"
 
-  String html = "<!DOCTYPE html> <html> <head> <meta http-equiv=\"refresh\" content=\"30\"><title>Fan Control</title> <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/bootswatch/5.2.3/superhero/bootstrap.min.css\" integrity=\"sha512-OIkcyk7xM5npH4qAW0dlLVzXsAzumZZnHfOB3IL17cXO6bNIK4BpYSh0d63R1llgUcrWZ709bCJhenNrEsno0w==\" crossorigin=\"anonymous\" referrerpolicy=\"no-referrer\" /> </head> <body> <div class=\"container\"> <div class=\"row\"> <div class=\"col-lg-12\"> <div> <h2>&nbsp;</h2> <h1>Loft Temperature</h1> <h2 class=\"text-info\">";
+  String html = "<!DOCTYPE html> <html> <head> <title>Fan Control</title> <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/bootswatch/5.2.3/superhero/bootstrap.min.css\" integrity=\"sha512-OIkcyk7xM5npH4qAW0dlLVzXsAzumZZnHfOB3IL17cXO6bNIK4BpYSh0d63R1llgUcrWZ709bCJhenNrEsno0w==\" crossorigin=\"anonymous\" referrerpolicy=\"no-referrer\" /> </head> <body> <div class=\"container\"> <div class=\"row\"> <div class=\"col-lg-12\"> <div> <h2>&nbsp;</h2> <h1>Loft Temperature</h1>";
 
-  char tempdisp[10];
 
-  sprintf(tempdisp, "%.1f", temp);
+  html.concat("<div align=\"center\"><br/><br/><iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/2073508/charts/1?bgcolor=%23000000&color=%23d62020&dynamic=true&results=600&timescale=10&type=line\"></iframe></div>");
 
-  html.concat(tempdisp);
-
-  html.concat("c</h2> </div> </div> </div> <div class=\"row\"> <div class=\"col-lg-12\"> <div> <h2>&nbsp;</h2> <h1>Fan Control</h1> </div> </div> </div> <div class=\"row\"> <div class=\"col-lg-12\"> <h2 class=\"text-info\">");
+  html.concat("</div> </div> </div> <div class=\"row\"> <div class=\"col-lg-12\"> <div> <h2>&nbsp;</h2> <h1>Fan Control</h1> </div> </div> </div> <div class=\"row\"> <div class=\"col-lg-12\"> <h2 class=\"text-info\">");
 
   html.concat(relayOn ? "Running" : "Fan is off");
 
@@ -82,16 +85,22 @@ void setup()
 {
   // Start the serial for debug
   Serial.begin(115200);
+
   // Start the DS18B20 sensor
   sensors.begin();
   // LEDS
   pinMode(LED_RELAY, OUTPUT);
   digitalWrite(LED_RELAY, LOW);
 
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+
   // RELAY
   pinMode(RELAY_PIN, OUTPUT);
 
   WiFi.begin(ssid, password);
+
+  ThingSpeak.begin(client);
 
   // Wait for connection
   Serial.print("Connecting to wifi ");
@@ -136,7 +145,13 @@ void loop()
     sensors.requestTemperatures();
     temp = sensors.getTempCByIndex(0);
 
+    ThingSpeak.setField(1, temp);
+    ThingSpeak.setField(2, relayOn ? 1 : 0);
+
+    ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+
     Serial.println(temp);
+    digitalToggle(LED_BUILTIN);
   }
 
   // Check for OTA updates
