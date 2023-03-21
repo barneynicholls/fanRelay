@@ -52,7 +52,6 @@ void handleRoot()
 
   String html = "<!DOCTYPE html> <html> <head> <title>Fan Control</title> <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/bootswatch/5.2.3/superhero/bootstrap.min.css\" integrity=\"sha512-OIkcyk7xM5npH4qAW0dlLVzXsAzumZZnHfOB3IL17cXO6bNIK4BpYSh0d63R1llgUcrWZ709bCJhenNrEsno0w==\" crossorigin=\"anonymous\" referrerpolicy=\"no-referrer\" /> </head> <body> <div class=\"container\"> <div class=\"row\"> <div class=\"col-lg-12\"> <div> <h2>&nbsp;</h2> <h1>Loft Temperature</h1>";
 
-
   html.concat("<div align=\"center\"><br/><br/><iframe width=\"450\" height=\"260\" style=\"border: 1px solid #cccccc;\" src=\"https://thingspeak.com/channels/2073508/charts/1?bgcolor=%23000000&color=%23d62020&dynamic=true&results=600&timescale=10&type=line\"></iframe></div>");
 
   html.concat("</div> </div> </div> <div class=\"row\"> <div class=\"col-lg-12\"> <div> <h2>&nbsp;</h2> <h1>Fan Control</h1> </div> </div> </div> <div class=\"row\"> <div class=\"col-lg-12\"> <h2 class=\"text-info\">");
@@ -97,6 +96,7 @@ void setup()
 
   // RELAY
   pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW);
 
   WiFi.begin(ssid, password);
 
@@ -145,7 +145,10 @@ void loop()
     sensors.requestTemperatures();
     temp = sensors.getTempCByIndex(0);
 
-    ThingSpeak.setField(1, temp);
+    char tempdisp[10];
+    sprintf(tempdisp, "%.2f", temp);
+
+    ThingSpeak.setField(1, tempdisp);
     ThingSpeak.setField(2, relayOn ? 1 : 0);
 
     ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
